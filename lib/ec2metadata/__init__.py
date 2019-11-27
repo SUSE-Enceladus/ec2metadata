@@ -1,5 +1,5 @@
 # Copyright (c) 2013 Alon Swartz <alon@turnkeylinux.org>
-# Copyright (c) 2017 SUSE LLC, Robert Schweikert <rjschwei@suse.com>
+# Copyright (c) 2019 SUSE LLC
 #
 # This file is part of ec2metadata.
 #
@@ -34,7 +34,8 @@ class EC2Metadata:
         self.addr = addr
         self.api = api
         self.dataCategories = ['dynamic/', 'meta-data/']
-
+        self.token_access = False
+        
         if not self._test_connectivity(self.addr, 80):
             msg = 'Could not establish connection to: %s' % self.addr
             raise EC2MetadataError(msg)
@@ -75,11 +76,33 @@ class EC2Metadata:
 
     def _get(self, uri):
         url = 'http://%s/%s/%s' % (self.addr, self.api, uri)
-        req = urllib.request.Request(url)
+        token = None
+        data_request = None
+        value = b''
+        if self.token_access:
+            req = urllib.request.Request(
+                'http://169.254.169.254/latest/api/token',
+                headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
+                method='PUT'
+            )
+            try:
+                token = urllib.request.urlopen(req).read().decode()
+            except urllib.error.URLError:
+                msg = 'Unable to obtain token from metadata server'
+                raise EC2MetadataError(msg)
+            data_request = urllib.request.Request(
+                url,
+                headers={'X-aws-ec2-metadata-token': token}
+            )
+        else:
+            data_request = urllib.request.Request(url)
         try:
-            value = urllib.request.urlopen(req).read()
-        except:
-            return None
+            value = urllib.request.urlopen(data_request).read()
+        except urllib.error.URLError:
+            if self.token_access:
+                return None
+            self.use_token_access()
+            self._get(uri)
 
         return value.decode()
 
@@ -145,3 +168,8 @@ class EC2Metadata:
         self.api = apiVersion
         self._resetetaOptsAPIMap()
         self._setMetaOpts()
+
+    def use_token_access(self):
+        """Use token based access to retrieve the metadata information. This
+           supports IMDSv2"""
+        self.token_access = True
