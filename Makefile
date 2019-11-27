@@ -1,7 +1,7 @@
 DESTDIR=
 PREFIX=
 NAME=ec2metadata
-dirs = lib
+dirs = lib man
 files = Makefile README.md LICENSE ec2metadata setup.py
 
 nv = $(shell rpm -q --specfile --qf '%{NAME}-%{VERSION}\n' *.spec)
