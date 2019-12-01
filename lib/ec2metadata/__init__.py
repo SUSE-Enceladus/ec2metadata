@@ -34,7 +34,9 @@ class EC2Metadata:
         self.addr = addr
         self.api = api
         self.data_categories = ['dynamic/', 'meta-data/']
+        self.token = ''
         self.token_access = False
+        self.token_expiry = int(time.time())
 
         if not self._test_connectivity(self.addr, 80):
             msg = 'Could not establish connection to: %s' % self.addr
@@ -76,22 +78,28 @@ class EC2Metadata:
 
     def _create_request(self, url):
         """Create a request object used to access the given URL"""
-        token = None
         request = None
+        token_ttl = 100
         if self.token_access:
-            req = urllib.request.Request(
-                'http://169.254.169.254/latest/api/token',
-                headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
-                method='PUT'
-            )
-            try:
-                token = urllib.request.urlopen(req).read().decode()
-            except urllib.error.URLError:
-                msg = 'Unable to obtain token from metadata server'
-                raise EC2MetadataError(msg)
+            # Cut off the decimals, provides a small buffer for time skew
+            now = int(time.time())
+            if not self.token or now > self.token_expiry:
+                self.token_expiry = now + token_ttl
+                req = urllib.request.Request(
+                    'http://169.254.169.254/latest/api/token',
+                    headers={
+                        'X-aws-ec2-metadata-token-ttl-seconds': str(token_ttl)
+                    },
+                    method='PUT'
+                )
+                try:
+                    self.token = urllib.request.urlopen(req).read().decode()
+                except urllib.error.URLError:
+                    msg = 'Unable to obtain token from metadata server'
+                    raise EC2MetadataError(msg)
             request = urllib.request.Request(
                 url,
-                headers={'X-aws-ec2-metadata-token': token}
+                headers={'X-aws-ec2-metadata-token': self.token}
             )
         else:
             request = urllib.request.Request(url)
