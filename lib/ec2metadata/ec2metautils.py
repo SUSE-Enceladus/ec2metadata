@@ -1,6 +1,6 @@
 #
 # Copyright (c) 2013 Alon Swartz <alon@turnkeylinux.org>
-# Copyright (c) 2017 SUSE LLC, Robert Schweikert <rjschwei@suse.com>
+# Copyright (c) 2019 SUSE LLC
 #
 # This file is part of ec2metadata.
 #
@@ -28,7 +28,7 @@ from io import IOBase
 import ec2metadata
 
 
-def _genXML(metadata, metaopts):
+def _generate_xml(metadata, metaopts):
     """Use the option name as a tag name to wrap the data."""
 
     xml = ''
@@ -48,7 +48,7 @@ def _open_file(path):
     fout = None
     try:
         fout = open(path, 'w')
-    except:
+    except Exception:
         msg = 'Unable to open file "%s" for writing' % path
         raise ec2metadata.EC2MetadataError(msg)
 
@@ -70,7 +70,7 @@ def _write(file_path, data):
             fout = file_path
     try:
         fout.write(data)
-    except:
+    except Exception:
         msg = 'Unable to write to file "%s"' % fout.name
         raise ec2metadata.EC2MetadataError(msg)
     finally:
@@ -81,22 +81,22 @@ def _write(file_path, data):
 def display(metadata, metaopts, prefix=False):
     """primitive: display metaopts (list) values with optional prefix"""
 
-    writefile(sys.stdout, metadata, metaopts, prefix)
+    write_file(sys.stdout, metadata, metaopts, prefix)
 
 
-def displayXML(metadata, metaopts):
+def display_xml(metadata, metaopts):
     """Collect the requested data and display it as XML"""
-    data = _genXML(metadata, metaopts)
+    data = _generate_xml(metadata, metaopts)
     print(data)
 
 
-def showVersion():
+def show_version():
     """Print the version"""
     verPath = os.path.dirname(__file__) + '/VERSION'
     print(open(verPath).read())
 
 
-def writefile(filePath, metadata, metaopts, prefix=False):
+def write_file(file_path, metadata, metaopts, prefix=False):
     """Collect the requested data and write it to the given file."""
 
     data = ''
@@ -110,11 +110,11 @@ def writefile(filePath, metadata, metaopts, prefix=False):
         else:
             data += value + '\n'
 
-    _write(filePath, data)
+    _write(file_path, data)
 
 
-def writeXMLfile(filePath, metadata, metaopts):
+def write_xml_file(file_path, metadata, metaopts):
     """Collect the requested data and write it to the given file as XML"""
 
-    data = _genXML(metadata, metaopts)
-    _write(filePath, data)
+    data = _generate_xml(metadata, metaopts)
+    _write(file_path, data)
