@@ -19,7 +19,7 @@
 
 %define upstream_name ec2metadata
 Name:           python3-ec2metadata
-Version:        3.0.0
+Version:        3.0.2
 Release:        0
 Summary:        Collect instance metadata in EC2
 License:        GPL-3.0+
@@ -48,10 +48,15 @@ python3 setup.py build
 
 %install
 python3 setup.py install --prefix=%{_prefix} --root=%{buildroot}
+install -d -m 755 %{buildroot}/%{_mandir}/man1
+install -m 644 man/man1/ec2metadata.1 %{buildroot}/%{_mandir}/man1
+gzip %{buildroot}/%{_mandir}/man1/ec2metadata.1
 
 %files
 %defattr(-,root,root,-)
-%doc README.md LICENSE
+%doc README.md
+%license LICENSE
+%{_mandir}/man*/*
 %dir %{python3_sitelib}/%{upstream_name}
 %dir %{python3_sitelib}/%{upstream_name}-%{version}-py%{py3_ver}.egg-info
 %{_bindir}/*

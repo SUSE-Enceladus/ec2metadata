@@ -1,0 +1,53 @@
+.\" Process this file with
+.\" groff -man -Tascii ec2metadata.1
+.\"
+.TH ec2metadata.1
+.SH NAME
+ec2metadata \- Query the AWS IMDS (Instance MetaData Service)
+.SH SYNOPSIS
+.B ec2metadata [option]
+.SH DESCRIPTION
+.B ec2metadata
+is used to query the AWS IMDS (Instance MetaData Service). The available
+data is documented at 
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html .
+The command line options the tool accepts are for the most part dynamically
+generated and therefore will change as more endpoints are added. The static
+command line options are documented in this man page while the dynamic
+options are not documented here. The tool will display all information
+available if no command line options are provided.
+.SH OPTIONS
+.IP "-a --api"
+Specify the version of the metadata server API to use.
+.IP "--help"
+Print all available command line options to standard out.
+.IP "--listapis"
+List the API versions available for accessing IMDS.
+.IP "--output"
+Write the requested information to the given file.
+.IP "--version"
+Print the version of the tool.
+.IP "--use-token-access"
+With version 2 of IMDS a token based access method to IMDS was introduced.
+This option instructs the query to use the token based access method. The
+token based access method is also the fall back should an attempt to access
+IMDS without a token fail.
+.IP "--xml"
+Specify that the tool should produce XML snippets. Using this option produces
+information that is wrapped in tags that match the API endpoint option. For
+example when querying the external IPv4 address of an instance with the
+.I --xml
+flag set the resulting output would be
+.I <public-ipv4s>IP_ADDRESS</public-ipv4s>
+.SH EXAMPLES
+ec2metadata --api latest --xml --instance-type
+
+Will print the instance type of the running instance wrapped in XML tags.
+.P
+ec2metadata --api 2018-08-17 --hostname
+
+Will print the hostname of the running instance according to the information
+in IMDS. Note the hostname can be set on the system and a system hostname
+query with hostname command may return a different result.
+.SH AUTHOR
+Robert Schweikert (rjschwei@suse.com)
