@@ -1,5 +1,5 @@
 # Copyright (c) 2013 Alon Swartz <alon@turnkeylinux.org>
-# Copyright (c) 2017 SUSE LLC, Robert Schweikert <rjschwei@suse.com>
+# Copyright (c) 2019 SUSE LLC
 #
 # This file is part of ec2metadata.
 #
@@ -33,14 +33,15 @@ class EC2Metadata:
     def __init__(self, addr='169.254.169.254', api='2008-02-01'):
         self.addr = addr
         self.api = api
-        self.dataCategories = ['dynamic/', 'meta-data/']
+        self.data_categories = ['dynamic/', 'meta-data/']
+        self.token_access = False
 
         if not self._test_connectivity(self.addr, 80):
             msg = 'Could not establish connection to: %s' % self.addr
             raise EC2MetadataError(msg)
 
-        self._resetetaOptsAPIMap()
-        self._setMetaOpts()
+        self._reset_meta_options_api_map()
+        self._set_meta_options()
 
     @staticmethod
     def _test_connectivity(addr, port):
@@ -55,10 +56,10 @@ class EC2Metadata:
 
         return False
 
-    def _addMetaOpts(self, path):
+    def _add_mata_option(self, path):
         """Add meta options available under the current path to the options
            to API map"""
-        options = list(self.metaOptsAPIMap.keys())
+        options = list(self.meta_options_api_map.keys())
         value = self._get(path)
         if not value:
             return None
@@ -69,36 +70,58 @@ class EC2Metadata:
                     continue
                 if item not in options:
                     if item[-1] != '/':
-                        self.metaOptsAPIMap[item] = path + item
+                        self.meta_options_api_map[item] = path + item
                     else:
-                        self._addMetaOpts(path+item)
+                        self._add_mata_option(path+item)
 
     def _get(self, uri):
         url = 'http://%s/%s/%s' % (self.addr, self.api, uri)
-        req = urllib.request.Request(url)
+        token = None
+        data_request = None
+        value = b''
+        if self.token_access:
+            req = urllib.request.Request(
+                'http://169.254.169.254/latest/api/token',
+                headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
+                method='PUT'
+            )
+            try:
+                token = urllib.request.urlopen(req).read().decode()
+            except urllib.error.URLError:
+                msg = 'Unable to obtain token from metadata server'
+                raise EC2MetadataError(msg)
+            data_request = urllib.request.Request(
+                url,
+                headers={'X-aws-ec2-metadata-token': token}
+            )
+        else:
+            data_request = urllib.request.Request(url)
         try:
-            value = urllib.request.urlopen(req).read()
-        except:
-            return None
+            value = urllib.request.urlopen(data_request).read()
+        except urllib.error.URLError:
+            if self.token_access:
+                return None
+            self.use_token_access()
+            self._get(uri)
 
         return value.decode()
 
-    def _resetetaOptsAPIMap(self):
+    def _reset_meta_options_api_map(self):
         """Set options that have special semantics"""
-        self.metaOptsAPIMap = {
+        self.meta_options_api_map = {
             'public-keys': 'meta-data/public-keys',
             'user-data': 'user-data'
         }
 
-    def _setMetaOpts(self):
+    def _set_meta_options(self):
         """Set the metadata options for the current API on this object."""
-        for path in self.dataCategories:
-            self._addMetaOpts(path)
+        for path in self.data_categories:
+            self._add_mata_option(path)
 
     def get(self, metaopt):
         """Return value of metaopt"""
 
-        path = self.metaOptsAPIMap.get(metaopt, None)
+        path = self.meta_options_api_map.get(metaopt, None)
         if not path:
             raise EC2MetadataError('Unknown metaopt: %s' % metaopt)
 
@@ -117,31 +140,38 @@ class EC2Metadata:
 
         return self._get(path)
 
-    def getAvailableAPIVersions(self):
+    def get_available_api_versions(self):
         """Return a list of the available API versions"""
         url = 'http://%s/' % self.addr
+        # Handle token access here as well FIXME
         req = urllib.request.Request(url)
         value = urllib.request.urlopen(req).read().decode()
         apiVers = value.split('\n')
         return apiVers
 
-    def getMetaOptions(self):
+    def get_meta_data_options(self):
         """Return the available options for the current api version"""
-        options = list(self.metaOptsAPIMap.keys())
+        options = list(self.meta_options_api_map.keys())
         options.sort()
         return options
 
-    def setAPIVersion(self, apiVersion=None):
+    def set_api_version(self, api_version=None):
         """Set the API version to use for the query"""
-        if not apiVersion:
+        if not api_version:
             # Nothing to do
             return self.api
+        # Handle token access here as well FIXME
         url = 'http://%s' % self.addr
         req = urllib.request.Request(url)
-        availableAPIs = urllib.request.urlopen(req).read().decode().split('\n')
-        if apiVersion not in availableAPIs:
-            msg = 'Requested API version "%s" not available' % apiVersion
+        meta_apis = urllib.request.urlopen(req).read().decode().split('\n')
+        if api_version not in meta_apis:
+            msg = 'Requested API version "%s" not available' % api_version
             raise EC2MetadataError(msg)
-        self.api = apiVersion
-        self._resetetaOptsAPIMap()
-        self._setMetaOpts()
+        self.api = api_version
+        self._reset_meta_options_api_map()
+        self._set_meta_options()
+
+    def use_token_access(self):
+        """Use token based access to retrieve the metadata information. This
+           supports IMDSv2"""
+        self.token_access = True
