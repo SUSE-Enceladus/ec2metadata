@@ -1,7 +1,7 @@
 #
 # spec file for package python-ec2metadata
 #
-# Copyright (c) 2018 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# Copyright (c) 2020 SUSE LINUX Products GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -15,11 +15,9 @@
 # Please submit bugfixes or comments via http://bugs.opensuse.org/
 #
 
-# MUST remain Python 2 based until EOL of SLES 11 in March 2019
-
 %define upstream_name ec2metadata
 Name:           python3-ec2metadata
-Version:        3.0.2
+Version:        3.0.3
 Release:        0
 Summary:        Collect instance metadata in EC2
 License:        GPL-3.0+
