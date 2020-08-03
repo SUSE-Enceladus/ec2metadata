@@ -34,12 +34,12 @@ class EC2Metadata:
         self.addr = addr
         self.api = api
         self.data_categories = ['dynamic/', 'meta-data/']
-        self.token_access = False
 
         if not self._test_connectivity(self.addr, 80):
             msg = 'Could not establish connection to: %s' % self.addr
             raise EC2MetadataError(msg)
 
+        self._set_api_header()
         self._reset_meta_options_api_map()
         self._set_meta_options()
 
@@ -76,33 +76,13 @@ class EC2Metadata:
 
     def _get(self, uri):
         url = 'http://%s/%s/%s' % (self.addr, self.api, uri)
-        token = None
         data_request = None
         value = b''
-        if self.token_access:
-            req = urllib.request.Request(
-                'http://169.254.169.254/latest/api/token',
-                headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
-                method='PUT'
-            )
-            try:
-                token = urllib.request.urlopen(req).read().decode()
-            except urllib.error.URLError:
-                msg = 'Unable to obtain token from metadata server'
-                raise EC2MetadataError(msg)
-            data_request = urllib.request.Request(
-                url,
-                headers={'X-aws-ec2-metadata-token': token}
-            )
-        else:
-            data_request = urllib.request.Request(url)
+        data_request = urllib.request.Request(url, headers=self.request_header)
         try:
             value = urllib.request.urlopen(data_request).read()
         except urllib.error.URLError:
-            if self.token_access:
-                return None
-            self.use_token_access()
-            self._get(uri)
+            return None
 
         return value.decode()
 
@@ -113,6 +93,21 @@ class EC2Metadata:
             'user-data': 'user-data'
         }
 
+    def _set_api_header(self):
+        """Set the header to be used in requests to the metadata service,
+           IMDs. Prefer IMDSv2 which requires a token."""
+        request = urllib.request.Request(
+            'http://169.254.169.254/latest/api/token',
+            headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
+            method='PUT'
+        )
+        try:
+            token = urllib.request.urlopen(request).read().decode()
+        except urllib.error.URLError:
+            self.request_header = {}
+
+        self.request_header = {'X-aws-ec2-metadata-token': token}
+        
     def _set_meta_options(self):
         """Set the metadata options for the current API on this object."""
         for path in self.data_categories:
@@ -143,8 +138,7 @@ class EC2Metadata:
     def get_available_api_versions(self):
         """Return a list of the available API versions"""
         url = 'http://%s/' % self.addr
-        # Handle token access here as well FIXME
-        req = urllib.request.Request(url)
+        req = urllib.request.Request(url, headers=self.request_header)
         value = urllib.request.urlopen(req).read().decode()
         apiVers = value.split('\n')
         return apiVers
@@ -160,9 +154,8 @@ class EC2Metadata:
         if not api_version:
             # Nothing to do
             return self.api
-        # Handle token access here as well FIXME
         url = 'http://%s' % self.addr
-        req = urllib.request.Request(url)
+        req = urllib.request.Request(url, headers=self.request_header)
         meta_apis = urllib.request.urlopen(req).read().decode().split('\n')
         if api_version not in meta_apis:
             msg = 'Requested API version "%s" not available' % api_version
