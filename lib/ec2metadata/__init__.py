@@ -33,7 +33,26 @@ class EC2Metadata:
     def __init__(self, addr='169.254.169.254', api='2008-02-01'):
         self.addr = addr
         self.api = api
-        self.data_categories = ['dynamic/', 'meta-data/']
+        self.data_categories = [
+            'autoscaling/',
+            'block-device-mapping/',
+            'dynamic/',
+            'elastic-gpus/associations/',
+            'elastic-inference/associations/',
+            'events/maintenance/',
+            'events/recommendations/',
+            'fws/',
+            'iam/',
+            'identity-credentials/ec2/',
+            'instance-identity/',
+            'meta-data/',
+            'network/interfaces/macs/',
+            'placement/',
+            'public-keys/',
+            'services/',
+            'spot/',
+            'tags/'
+        ]
 
         if not self._test_connectivity(self.addr, 80):
             msg = 'Could not establish connection to: %s' % self.addr
@@ -107,7 +126,7 @@ class EC2Metadata:
             self.request_header = {}
 
         self.request_header = {'X-aws-ec2-metadata-token': token}
-        
+
     def _set_meta_options(self):
         """Set the metadata options for the current API on this object."""
         for path in self.data_categories:
