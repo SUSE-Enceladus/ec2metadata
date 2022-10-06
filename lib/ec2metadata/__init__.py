@@ -68,11 +68,28 @@ class EC2Metadata:
             if item:
                 if item == 'public-keys/':
                     continue
-                if item not in options:
-                    if item[-1] != '/':
+                if item[-1] == '/':
+                    self._add_mata_option(path+item)
+                else:
+                    if item not in options:
                         self.meta_options_api_map[item] = path + item
                     else:
-                        self._add_mata_option(path+item)
+                        # Construct a new name for the option using the given
+                        # path as name addition
+                        option_name = item
+                        # Drop the empty entry, the path has a '/' at the end
+                        prefix_name_opts = path.split('/')[:-1]
+                        prefix_name_opts.reverse()
+                        cnt = 1
+                        while option_name in options:
+                            option_name = '-'.join(
+                                prefix_name_opts[:cnt] + [option_name]
+                            )
+                            if cnt == len(prefix_name_opts):
+                                break
+                            cnt +=1
+                        else:
+                            self.meta_options_api_map[option_name] = path + item
 
     def _get(self, uri):
         url = 'http://%s/%s/%s' % (self.addr, self.api, uri)
