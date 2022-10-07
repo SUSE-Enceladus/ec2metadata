@@ -56,7 +56,7 @@ class EC2Metadata:
 
         return False
 
-    def _add_mata_option(self, path):
+    def _add_meta_option(self, path):
         """Add meta options available under the current path to the options
            to API map"""
         options = list(self.meta_options_api_map.keys())
@@ -69,7 +69,7 @@ class EC2Metadata:
                 if item == 'public-keys/':
                     continue
                 if item[-1] == '/':
-                    self._add_mata_option(path+item)
+                    self._add_meta_option(path+item)
                 else:
                     if item not in options:
                         self.meta_options_api_map[item] = path + item
@@ -128,7 +128,7 @@ class EC2Metadata:
     def _set_meta_options(self):
         """Set the metadata options for the current API on this object."""
         for path in self.data_categories:
-            self._add_mata_option(path)
+            self._add_meta_option(path)
 
     def get(self, metaopt):
         """Return value of metaopt"""
