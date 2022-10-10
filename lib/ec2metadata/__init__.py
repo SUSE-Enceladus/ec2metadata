@@ -34,6 +34,7 @@ class EC2Metadata:
         self.addr = addr
         self.api = api
         self.data_categories = ['dynamic/', 'meta-data/']
+        self.duplicate_names = []
 
         if not self._test_connectivity(self.addr, 80):
             msg = 'Could not establish connection to: %s' % self.addr
@@ -56,7 +57,7 @@ class EC2Metadata:
 
         return False
 
-    def _add_mata_option(self, path):
+    def _add_meta_option(self, path):
         """Add meta options available under the current path to the options
            to API map"""
         options = list(self.meta_options_api_map.keys())
@@ -68,11 +69,35 @@ class EC2Metadata:
             if item:
                 if item == 'public-keys/':
                     continue
-                if item not in options:
-                    if item[-1] != '/':
+                if item[-1] == '/':
+                    self._add_meta_option(path+item)
+                else:
+                    if item not in options and item not in self.duplicate_names:
                         self.meta_options_api_map[item] = path + item
                     else:
-                        self._add_mata_option(path+item)
+                        if item in options:
+                            # Expand the existing entry
+                            self.duplicate_names.append(item)
+                            existing_path = self.meta_options_api_map[item]
+                            new_name = self._expand_name(existing_path)
+                            self.meta_options_api_map[new_name] = existing_path
+                            del(self.meta_options_api_map[item])
+                        # Construct a new name for the option using the given
+                        # path as name addition
+                        option_name = self._expand_name(path, item)
+                        self.meta_options_api_map[option_name] = path + item
+
+    def _expand_name(self, path, endpoint=''):
+        """Expand the name of an endpoint with the preceeding entry in the
+           path or construct the name from the path by using the last to
+           elements"""
+        path_elements = path.split('/')
+        if not path_elements[-1]:
+            path_elements = path_elements[:-1]
+        if endpoint:
+            return path_elements[-1] + '-' + endpoint
+
+        return '-'.join(path_elements[-2:])
 
     def _get(self, uri):
         url = 'http://%s/%s/%s' % (self.addr, self.api, uri)
@@ -111,7 +136,7 @@ class EC2Metadata:
     def _set_meta_options(self):
         """Set the metadata options for the current API on this object."""
         for path in self.data_categories:
-            self._add_mata_option(path)
+            self._add_meta_option(path)
 
     def get(self, metaopt):
         """Return value of metaopt"""
