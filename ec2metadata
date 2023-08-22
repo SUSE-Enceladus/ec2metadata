@@ -68,7 +68,6 @@ def main():
         getopt_metaopts.append('help')
         getopt_metaopts.append('listapis')
         getopt_metaopts.append('output')
-        getopt_metaopts.append('use-token-access')
         getopt_metaopts.append('version')
         getopt_metaopts.append('xml')
         getopt_metaopts.sort()
@@ -104,9 +103,6 @@ def main():
             sys.exit(0)
         elif opt in ('-x', '--xml'):
             generate_xml = True
-            continue
-        elif opt == '--use-token-access':
-            meta.use_token_access()
             continue
 
         metaopts.append(opt.replace('--', ''))

@@ -109,8 +109,7 @@ class EC2Metadata:
         }
 
     def _set_api_header(self):
-        """Set the header to be used in requests to the metadata service,
-           IMDs. Prefer IMDSv2 which requires a token."""
+        """Set the header to be used in requests to the metadata service"""
         request = urllib.request.Request(
             'http://%s/latest/api/token' % self.addr,
             headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
@@ -119,8 +118,7 @@ class EC2Metadata:
         try:
             token = urllib.request.urlopen(request).read().decode()
         except urllib.error.URLError:
-            self.request_header = {}
-            return
+            raise EC2MetadataError('Unable to retrieve metadata token')
 
         self.request_header = {'X-aws-ec2-metadata-token': token}
 
@@ -209,7 +207,3 @@ class EC2Metadata:
         self._reset_meta_options_api_map()
         self._set_meta_options()
 
-    def use_token_access(self):
-        """Use token based access to retrieve the metadata information. This
-           supports IMDSv2"""
-        self.token_access = True
