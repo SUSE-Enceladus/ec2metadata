@@ -1,5 +1,5 @@
 # Copyright (c) 2013 Alon Swartz <alon@turnkeylinux.org>
-# Copyright (c) 2019 SUSE LLC
+# Copyright (c) 2023 SUSE LLC
 #
 # This file is part of ec2metadata.
 #
@@ -20,7 +20,8 @@ import time
 import urllib.request
 import urllib.parse
 import urllib.error
-import socket
+
+from socket import (has_ipv6, create_connection)
 
 
 class EC2MetadataError(Exception):
@@ -30,32 +31,21 @@ class EC2MetadataError(Exception):
 class EC2Metadata:
     """Class for querying metadata from EC2"""
 
-    def __init__(self, addr='169.254.169.254', api='2008-02-01'):
-        self.addr = addr
+    def __init__(self, api='2008-02-01'):
         self.api = api
         self.data_categories = ['dynamic/', 'meta-data/']
         self.duplicate_names = []
+        
+        self.addr = None
+        self._set_ipaddress()
 
-        if not self._test_connectivity(self.addr, 80):
-            msg = 'Could not establish connection to: %s' % self.addr
+        if not self.addr:
+            msg = 'Could not establish connection to: IMDS'
             raise EC2MetadataError(msg)
 
         self._set_api_header()
         self._reset_meta_options_api_map()
         self._set_meta_options()
-
-    @staticmethod
-    def _test_connectivity(addr, port):
-        for i in range(6):
-            s = socket.socket()
-            try:
-                s.connect((addr, port))
-                s.close()
-                return True
-            except socket.error:
-                time.sleep(1)
-
-        return False
 
     def _add_meta_option(self, path):
         """Add meta options available under the current path to the options
@@ -122,7 +112,7 @@ class EC2Metadata:
         """Set the header to be used in requests to the metadata service,
            IMDs. Prefer IMDSv2 which requires a token."""
         request = urllib.request.Request(
-            'http://169.254.169.254/latest/api/token',
+            'http://%s/latest/api/token' % self.addr,
             headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
             method='PUT'
         )
@@ -130,9 +120,39 @@ class EC2Metadata:
             token = urllib.request.urlopen(request).read().decode()
         except urllib.error.URLError:
             self.request_header = {}
+            return
 
         self.request_header = {'X-aws-ec2-metadata-token': token}
-        
+
+    def _set_ipaddress(self):
+        metadata_ip_addrs = {
+            'ipv6_addr': 'fd00:ec2::254',
+            'ipv4_addr': '169.254.169.254'
+        }
+        # Check if the Python implementation has IPv6 support in the first place
+        if not has_ipv6:
+            self.addr = metadata_ip_addrs.get('ipv4_addr')
+            return
+            
+        # Python keeps the order in which entries were added to a dictionary
+        # therefore we comply with the RFC and try IPv6 first
+        for ip_family, ip_addr in metadata_ip_addrs.items():
+            for i in range(3):
+                try:
+                    socket = create_connection((ip_addr, 80), timeout=1)
+                    socket.close()
+                    if ip_family == 'ipv6_addr':
+                        # Make the IPv6 address http friendly
+                        self.addr = '[%s]' % ip_addr
+                    else:
+                        self.addr = ip_addr
+                except OSError:
+                    # Cannot reach the network
+                    break
+                except TimeoutError:
+                    # Not ready yet wait a little bit
+                    time.sleep(1)
+
     def _set_meta_options(self):
         """Set the metadata options for the current API on this object."""
         for path in self.data_categories:
