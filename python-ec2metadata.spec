@@ -1,7 +1,7 @@
 #
-# spec file for package python-ec2metadata
+# spec file for package python3-ec2metadata
 #
-# Copyright (c) 2020 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# Copyright (c) 2025 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -12,53 +12,56 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
-# Please submit bugfixes or comments via http://bugs.opensuse.org/
+# Please submit bugfixes or comments via https://bugs.opensuse.org/
 #
 
+
+%if 0%{?suse_version} >= 1600
+%define pythons %{primary_python}
+%else
+%{?sle15_python_module_pythons}
+%endif
+%global _sitelibdir %{%{pythons}_sitelib}
+
 %define upstream_name ec2metadata
-Name:           python3-ec2metadata
+Name:           python-ec2metadata
 Version:        5.0.0
 Release:        0
 Summary:        Collect instance metadata in EC2
-License:        GPL-3.0+
+License:        GPL-3.0-or-later
 Group:          System/Management
-Url:            https://github.com/SUSE-Enceladus/ec2metadata
+URL:            https://github.com/SUSE-Enceladus/ec2metadata
 Source0:        %{upstream_name}-%{version}.tar.bz2
-Requires:       python3
-BuildRequires:  python3-setuptools
-BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+Requires:       python
+BuildRequires:  %{pythons}-setuptools
+BuildRequires:  %{pythons}-pip
+BuildRequires:  %{pythons}-wheel
+BuildRequires:  python-rpm-macros
+BuildRequires:  fdupes
+Obsoletes:      python3-ec2metadata <= %{version}
 BuildArch:      noarch
-
-# Package renamed in SLE 12, do not remove Provides, Obsolete directives
-# until after SLE 12 EOL
-Provides:       python-ec2metadata = %{version}
-Obsoletes:      python-ec2metadata < %{version}
-
 
 %description
 Collect instance meta data in Amazon Compute CLoud instances
 
 %prep
-%setup -q -n %{upstream_name}-%{version}
+%autosetup -p1 -n %{upstream_name}-%{version}
 
 %build
-python3 setup.py build
+%pyproject_wheel
 
 %install
-python3 setup.py install --prefix=%{_prefix} --root=%{buildroot}
+%pyproject_install
 install -d -m 755 %{buildroot}/%{_mandir}/man1
 install -m 644 man/man1/ec2metadata.1 %{buildroot}/%{_mandir}/man1
-gzip %{buildroot}/%{_mandir}/man1/ec2metadata.1
+%fdupes %{buildroot}%{$_sitelibdir}
 
 %files
-%defattr(-,root,root,-)
 %doc README.md
 %license LICENSE
-%{_mandir}/man*/*
-%dir %{python3_sitelib}/%{upstream_name}
-%dir %{python3_sitelib}/%{upstream_name}-%{version}-py%{py3_ver}.egg-info
-%{_bindir}/*
-%{python3_sitelib}/%{upstream_name}/*
-%{python3_sitelib}/*egg-info/*
+%{_bindir}/%{upstream_name}
+%{_sitelibdir}/%{upstream_name}
+%{_sitelibdir}/%{upstream_name}-%{version}*-info
+%{_mandir}/man1/%{upstream_name}.1%{?ext_man}
 
 %changelog
