@@ -32,13 +32,16 @@ License:        GPL-3.0-or-later
 Group:          System/Management
 URL:            https://github.com/SUSE-Enceladus/ec2metadata
 Source0:        %{upstream_name}-%{version}.tar.bz2
-Requires:       python
 BuildRequires:  %{pythons}-setuptools
 BuildRequires:  %{pythons}-pip
 BuildRequires:  %{pythons}-wheel
 BuildRequires:  python-rpm-macros
 BuildRequires:  fdupes
 Obsoletes:      python3-ec2metadata <= %{version}
+Obsoletes:      python310-ec2metadata < %{version}
+Obsoletes:      python311-ec2metadata < %{version}
+Obsoletes:      python312-ec2metadata < %{version}
+Obsoletes:      python313-ec2metadata < %{version}
 BuildArch:      noarch
 
 %description
